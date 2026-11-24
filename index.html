@@ -1,0 +1,314 @@
+
+                        <!DOCTYPE html>
+                        <html lang="en">
+                        <head>
+                            <meta charset="UTF-8">
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+							<style>
+								body {
+									background-color: white; /* Ensure the iframe has a white background */
+								}
+
+								
+							</style>
+                        </head>
+                        <body>
+                            <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jacket Recommendation - Dynamic Location</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #c3cfe2;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+            transition: background 1s ease;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            text-align: center;
+            max-width: 450px;
+            width: 90%;
+            backdrop-filter: blur(5px);
+        }
+        h1 {
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+        .location-header {
+            color: #7f8c8d;
+            font-style: italic;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        #weather-emoji {
+            font-size: 4rem;
+            margin: 10px 0;
+            height: 80px; /* Prevents layout jump when emoji changes */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .controls {
+            margin-bottom: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 70%;
+            text-align: center;
+        }
+        button {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            border: none;
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .btn-geo {
+            background: #2ecc71;
+        }
+        .btn-geo:hover {
+            background: #27ae60;
+        }
+        .temp-container {
+            display: flex;
+            justify-content: space-around;
+            margin: 1rem 0;
+            border-top: 1px solid #eee;
+            padding-top: 1rem;
+        }
+        .temp-box {
+            flex: 1;
+        }
+        .label {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+        .temp {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #e67e22;
+        }
+        .recommendation {
+            font-size: 1.4rem;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+            border: 1px solid #ddd;
+        }
+        .loading {
+            color: #95a5a6;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body id="main-body">
+    <div class="card">
+        <h1 id="title">Today's Recommendation</h1>
+        <div id="location-name" class="location-header">Sherwood, Arkansas</div>
+        
+        <div id="weather-emoji">🌡️</div>
+        
+        <div class="controls">
+            <input type="text" id="city-input" placeholder="Enter city (e.g. Paris, FR)">
+            <div style="display: flex; gap: 10px;">
+                <button onclick="handleManualLocation()">Search</button>
+                <button class="btn-geo" onclick="handleGeolocation()">Use My Location</button>
+            </div>
+        </div>
+        
+        <div class="temp-container">
+            <div class="temp-box">
+                <div class="label">Predicted High</div>
+                <div id="high-temp" class="temp">--°F</div>
+            </div>
+            <div class="temp-box">
+                <div class="label">Predicted Low</div>
+                <div id="low-temp" class="temp">--°F</div>
+            </div>
+        </div>
+
+        <div id="recommendation-box" class="recommendation">
+            <span class="loading">Fetching forecast...</span>
+        </div>
+
+        <p style="margin-top: 1.5rem; font-size: 0.8rem; color: #95a5a6;">
+            Background and recommendations update based on your selection.
+        </p>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const API_KEY = 'YOUR-API-KEY-GOES-HERE'; // <-- Put your OpenWeatherMap API key here
+        const units = 'imperial';
+
+        // Mapping for state abbreviations to full names
+        const stateMap = {
+            "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California", "CO": "Colorado", "CT": "Connecticut",
+            "DE": "Delaware", "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana",
+            "IA": "Iowa", "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland", "MA": "Massachusetts",
+            "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri", "MT": "Montana", "NE": "Nebraska",
+            "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York", "NC": "North Carolina",
+            "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island",
+            "SC": "South Carolina", "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont",
+            "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming"
+        };
+
+        async function updateWeather(query) {
+            const highDisplay = document.getElementById('high-temp');
+            const lowDisplay = document.getElementById('low-temp');
+            const recBox = document.getElementById('recommendation-box');
+            const locName = document.getElementById('location-name');
+            const emojiDisplay = document.getElementById('weather-emoji');
+
+            let rawQuery = query || 'Sherwood, Arkansas';
+            let processedQuery = rawQuery;
+
+            // Expansion logic for state abbreviations (e.g. "Sherwood, AR" -> "Sherwood, Arkansas")
+            if (rawQuery.includes(',')) {
+                const parts = rawQuery.split(',');
+                const cityPart = parts[0].trim();
+                const statePart = parts[1].trim().toUpperCase();
+                
+                if (stateMap[statePart]) {
+                    processedQuery = `${cityPart}, ${stateMap[statePart]}`;
+                }
+            }
+
+            // Set initial display to the query text before processing
+            locName.innerText = rawQuery;
+
+            try {
+                const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(processedQuery)}&units=${units}&appid=${API_KEY}`);
+                const data = await response.json();
+
+                if (data.cod !== 200) {
+                    throw new Error(data.message);
+                }
+
+                // Update the header with the actual city name from the API response
+                if (data.name) {
+                    locName.innerText = data.name;
+                }
+
+                const high = Math.round(data.main.temp_max);
+                const low = Math.round(data.main.temp_min);
+                const weatherMain = data.weather[0].main.toLowerCase();
+
+                highDisplay.innerText = `${high}°F`;
+                lowDisplay.innerText = `${low}°F`;
+
+                // Update Emoji
+                let emoji = "🌡️";
+                if (weatherMain.includes("clear")) emoji = "☀️";
+                else if (weatherMain.includes("cloud")) emoji = "☁️";
+                else if (weatherMain.includes("rain")) emoji = "🌧️";
+                else if (weatherMain.includes("snow")) emoji = "❄️";
+                else if (weatherMain.includes("thunder")) emoji = "⛈️";
+                else if (weatherMain.includes("mist") || weatherMain.includes("fog") || weatherMain.includes("drizzle")) emoji = "🌫️";
+                
+                emojiDisplay.innerText = emoji;
+
+                updateBackground(high);
+
+                // Logic for the text recommendation
+                if (high < 65) {
+                    recBox.innerHTML = `<strong style="color: #721c24;">Wear a jacket!</strong><br><small style="font-size: 0.9rem; color: #721c24;">The high today is quite cool.</small>`;
+                    recBox.style.backgroundColor = "#f8d7da";
+                    recBox.style.borderColor = "#f5c6cb";
+                } else if (low < 50) {
+                    recBox.innerHTML = `<strong style="color: #155724;">Jacket for morning/evening!</strong><br><small style="font-size: 0.9rem; color: #155724;">It will be chilly at night/early morning.</small>`;
+                    recBox.style.backgroundColor = "#d4edda";
+                    recBox.style.borderColor = "#c3e6cb";
+                } else {
+                    recBox.innerHTML = `<strong style="color: #2c3e50;">No jacket needed!</strong><br><small style="font-size: 0.9rem; color: #2c3e50;">Perfect weather for a light layer or none at all.</small>`;
+                    recBox.style.backgroundColor = "#e8f4f8";
+                    recBox.style.borderColor = "#b3d7e8";
+                }
+
+            } catch (error) {
+                console.error("Error fetching weather:", error);
+                recBox.innerHTML = "Location not found. Please try again.";
+                recBox.style.backgroundColor = "#eee";
+                recBox.style.borderColor = "#ccc";
+            }
+        }
+
+        function updateBackground(temp) {
+            const body = document.getElementById('main-body');
+            let gradient = "";
+
+            if (temp < 50) {
+                gradient = "linear-gradient(135deg, #2c3e50 0%, #4ca1af 100%)";
+            } else if (temp < 70) {
+                gradient = "linear-gradient(135deg, #a1c4fd 0%, #c3cfe2 100%)";
+            } else if (temp < 85) {
+                gradient = "linear-gradient(135deg, #f6d365 0%, #fda08c 100%)";
+            } else {
+                gradient = "linear-gradient(135deg, #ff5f6d 0%, #ffc371 100%)";
+            }
+
+            body.style.background = gradient;
+        }
+
+        function handleManualLocation() {
+            const input = document.getElementById('city-input').value;
+            if (input) {
+                updateWeather(input);
+            } else {
+                alert("Please enter a city name first.");
+            }
+        }
+
+        function handleGeolocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        updateWeather(`${lat},${lon}`);
+                    },
+                    (error) => {
+                        alert("Unable to retrieve your location. Please enter it manually.");
+                    }
+                );
+            } else {
+                alert("Geolocation is not supported by your browser.");
+            }
+        }
+
+        // Initial Load
+        updateWeather();
+    </script>
+</body>
+</html>
+
+							<script>
+                            	
+							</script>
+                        </body>
+                        </html>
+                    
